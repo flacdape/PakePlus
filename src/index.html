@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>彭州市委巡察办发文管理系统</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#f5f5f5; font-family:"微软雅黑",sans-serif; padding:20px; }
+        .container { max-width:1000px; margin:0 auto; }
+        h1 { text-align:center; color:#2c3e50; margin-bottom:20px; }
+        .menu-bar { background:white; padding:15px; border-radius:6px; margin-bottom:20px; box-shadow:0 2px 3px #ddd; }
+        .menu-btn { padding:8px 14px; margin:0 5px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; }
+        .menu-btn:hover { background:#2980b9; }
+        .content-area { background:white; padding:25px; border-radius:6px; box-shadow:0 2px 3px #ddd; display:none; }
+        .form-group { margin:14px 0; }
+        label { display:inline-block; width:110px; font-weight:bold; }
+        input, select { padding:7px; width:260px; border:1px solid #ccc; border-radius:4px; }
+        .action-btn { padding:9px 20px; margin:10px 5px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; }
+        .action-btn:hover { background:#219653; }
+        .edit-btn { background:#f39c12; }
+        .del-btn { background:#e74c3c; }
+        .data-table { width:100%; border-collapse:collapse; margin-top:20px; }
+        .data-table th, .data-table td { border:1px solid #ddd; padding:9px; text-align:center; }
+        .data-table th { background:#f0f0f0; }
+        .setting-box { margin-top:15px; padding-top:15px; border-top:1px dashed #ccc; }
+        .login-wrap{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;}
+        .login-box{width:360px;background:#fff;padding:30px;border-radius:8px;text-align:center;}
+        .login-box h2{margin-bottom:20px;color:#2c3e50;}
+        .login-box input{width:240px;padding:10px;margin-bottom:15px;}
+        .login-box button{padding:10px 30px;background:#3498db;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+        .err-tip{color:red;height:20px;}
+        .author-box{margin-top:30px;padding:20px;border-top:1px dashed #ccc;color:#555;line-height:1.8;}
+        .filter-box{margin-bottom:15px;padding:10px;border:1px solid #eee;border-radius:4px;}
+        .filter-item{display:inline-block;margin:0 10px;}
+    </style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginBox">
+    <div class="login-box">
+        <h2>系统登录</h2>
+        <input type="password" id="pwdInput" placeholder="请输入登录密码">
+        <div class="err-tip" id="errTip"></div>
+        <button onclick="checkPwd()">登录</button>
+    </div>
+</div>
+
+<div class="container" id="mainApp" style="display:none;">
+    <h1>彭州市委巡察办发文管理系统</h1>
+    <div class="menu-bar">
+        <button class="menu-btn" onclick="showPage('home')">首页</button>
+        <button class="menu-btn" onclick="showPage('add')">新公文登记</button>
+        <button class="menu-btn" onclick="showPage('list')">发文一览表</button>
+        <button class="menu-btn" onclick="showPage('setting')">基础数据维护</button>
+        <button class="menu-btn" onclick="showPage('data')">数据管理</button>
+    </div>
+
+    <div class="content-area" id="page-home" style="display:block;">
+        <h3>欢迎使用发文管理系统</h3>
+        <p style="margin-top:15px; color:#666;">
+            • 新公文登记 → 输入标题自动显示文号<br>
+            • 发文一览表 → 支持按年份、月份、类型、文号、日期筛选并导出Excel<br>
+            • 数据管理 → 历史数据导入、备份、恢复数据
+        </p>
+        <div class="author-box">
+            <p>系统版本：V1.9 </p>
+            <p>开发人员：周毅</p>
+            <p>技术支持电话：672225</p>
+        </div>
+    </div>
+
+    <div class="content-area" id="page-add">
+        <h3>新公文登记</h3>
+        <div class="form-group"><label>发文类型：</label><select id="docType" onchange="previewDocNo()"></select></div>
+        <div class="form-group"><label>年份：</label><input type="number" id="year" value="2026" onchange="previewDocNo()"></div>
+        <div class="form-group"><label>文号：</label><input type="text" id="docNo" readonly disabled style="background:#f0f0f0;"></div>
+        <div class="form-group"><label>标题：</label><input type="text" id="title" onfocus="previewDocNo()" oninput="previewDocNo()"></div>
+        <div class="form-group"><label>页数：</label><input type="number" id="pages" value="1"></div>
+        <div class="form-group"><label>发文日期：</label><input type="date" id="sendDate"></div>
+        <div class="form-group"><label>审核人：</label><select id="auditUser"></select></div>
+        <div class="form-group"><label>主办/撰稿：</label><select id="writeUser"></select></div>
+        <div class="form-group"><label>打字：</label><select id="typeUser"></select></div>
+        <button class="action-btn" onclick="saveDoc()">保存</button>
+    </div>
+
+    <div class="content-area" id="page-list">
+        <h3>发文一览表</h3>
+        <div class="filter-box">
+            <div class="filter-item">
+                <label>年份：</label>
+                <input type="number" id="filterYear" value="2026" style="width:100px;">
+            </div>
+            <div class="filter-item">
+                <label>类型：</label>
+                <select id="filterType" style="width:120px;"><option value="">全部</option></select>
+            </div>
+            <div class="filter-item">
+                <label>文号关键字：</label>
+                <input type="text" id="filterDocNo" placeholder="如：彭组通" style="width:130px;">
+            </div>
+            <div class="filter-item">
+                <label>起始日期：</label>
+                <input type="date" id="startDate" style="width:130px;">
+            </div>
+            <div class="filter-item">
+                <label>结束日期：</label>
+                <input type="date" id="endDate" style="width:130px;">
+            </div>
+            <button class="action-btn" onclick="loadList()">刷新列表</button>
+            <button class="action-btn" onclick="exportFilterExcel()">导出筛选Excel</button>
+            <button class="action-btn" onclick="exportAllExcel()">导出全部Excel</button>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>文号</th><th>类型</th><th>标题</th><th>页数</th><th>日期</th><th>审核</th><th>撰稿</th><th>打字</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="docList"></tbody>
+        </table>
+    </div>
+
+    <div class="content-area" id="page-setting">
+        <h3>基础数据维护</h3>
+        <div class="setting-box">
+            <h4>发文类型</h4>
+            <input type="text" id="newType"><button class="action-btn" onclick="addItem('typeList','newType')">添加</button>
+            <div id="typeShow"></div>
+        </div>
+        <div class="setting-box">
+            <h4>审核人</h4>
+            <input type="text" id="newAudit"><button class="action-btn" onclick="addItem('auditList','newAudit')">添加</button>
+            <div id="auditShow"></div>
+        </div>
+        <div class="setting-box">
+            <h4>主办/撰稿</h4>
+            <input type="text" id="newWrite"><button class="action-btn" onclick="addItem('writeList','newWrite')">添加</button>
+            <div id="writeShow"></div>
+        </div>
+        <div class="setting-box">
+            <h4>打字人员</h4>
+            <input type="text" id="newTypeUser"><button class="action-btn" onclick="addItem('typeUserList','newTypeUser')">添加</button>
+            <div id="typeUserShow"></div>
+        </div>
+    </div>
+
+    <div class="content-area" id="page-data">
+        <h3>数据管理中心</h3>
+        <p style="margin-bottom:15px;color:#666;">批量导入历史数据、备份系统、恢复数据</p>
+        <div class="setting-box">
+            <button class="action-btn" onclick="downloadTemplate()">下载Excel导入模板</button>
+            <button class="action-btn" onclick="importExcel()">导入历史Excel数据</button>
+        </div>
+        <div class="setting-box">
+            <button class="action-btn" onclick="exportData()">备份整个系统</button>
+            <button class="action-btn" onclick="importData()">恢复系统数据</button>
+        </div>
+    </div>
+</div>
+
+<script src="xlsx.full.min.js"></script>
+
+<script>
+const LOGIN_PWD = "888888";
+let editIndex = -1;
+
+const defaultData = {
+    typeList: ["彭组通","彭组报"],
+    auditList: ["主任","副主任"],
+    writeList: ["科员"],
+    typeUserList: ["打字员"],
+    docs: []
+};
+
+function get(key){let v=localStorage.getItem(key);return v?JSON.parse(v):defaultData[key]}
+function set(key,val){localStorage.setItem(key,JSON.stringify(val))}
+
+function checkPwd(){
+    let i=document.getElementById("pwdInput").value.trim();
+    if(i===LOGIN_PWD){
+        document.getElementById("loginBox").style.display="none";
+        document.getElementById("mainApp").style.display="block";
+        showPage("home");
+    }else{
+        document.getElementById("errTip").innerText="密码错误，请重试";
+    }
+}
+document.getElementById("pwdInput").addEventListener("keydown",e=>{if(e.keyCode===13)checkPwd()});
+
+function showPage(page){
+    document.querySelectorAll(".content-area").forEach(el=>el.style.display="none");
+    document.getElementById("page-"+page).style.display="block";
+    if(page==="add"){editIndex=-1;initSelect();previewDocNo();}
+    if(page==="list"){initFilterType();loadList();}
+    if(page==="setting")showSetting();
+}
+
+function initSelect(){
+    fill("docType",get("typeList"));
+    fill("auditUser",get("auditList"));
+    fill("writeUser",get("writeList"));
+    fill("typeUser",get("typeUserList"));
+    document.getElementById("sendDate").valueAsDate=new Date();
+}
+function fill(id,arr){
+    let s=document.getElementById(id);s.innerHTML="";
+    arr.forEach(v=>{let o=document.createElement("option");o.value=v;o.innerText=v;s.appendChild(o)});
+}
+function initFilterType(){
+    let s=document.getElementById("filterType");
+    s.innerHTML="<option value=''>全部</option>";
+    get("typeList").forEach(v=>{let o=document.createElement("option");o.value=v;o.innerText=v;s.appendChild(o)});
+}
+
+function previewDocNo(){
+    let type = document.getElementById("docType").value;
+    let year = document.getElementById("year").value;
+    let list = get("docs");
+    let same = list.filter(item=>item.docType===type && item.year===year);
+    let no = same.length + 1;
+    document.getElementById("docNo").value = `${type}〔${year}〕${no}号`;
+}
+
+function saveDoc(){
+    let title = document.getElementById("title").value.trim();
+    if(!title){alert("请输入标题");return;}
+    let d = {
+        docNo:document.getElementById("docNo").value,
+        docType:document.getElementById("docType").value,
+        year:document.getElementById("year").value,
+        title:title,
+        pages:document.getElementById("pages").value,
+        sendDate:document.getElementById("sendDate").value,
+        auditUser:document.getElementById("auditUser").value,
+        writeUser:document.getElementById("writeUser").value,
+        typeUser:document.getElementById("typeUser").value
+    };
+    let list = get("docs");
+    list.push(d);
+    set("docs",list);
+    alert("保存成功！");
+    document.getElementById("title").value="";
+    previewDocNo();
+}
+
+function loadList(){
+    let list=get("docs");
+    let fYear=document.getElementById("filterYear").value;
+    let fType=document.getElementById("filterType").value;
+    let fDocNo=document.getElementById("filterDocNo").value.trim().toLowerCase();
+    let sDate=document.getElementById("startDate").value;
+    let eDate=document.getElementById("endDate").value;
+
+    list=list.filter(item=>{
+        if(item.year!==fYear) return false;
+        if(fType && item.docType!==fType) return false;
+        if(fDocNo && !item.docNo.toLowerCase().includes(fDocNo)) return false;
+        if(sDate && item.sendDate<sDate) return false;
+        if(eDate && item.sendDate>eDate) return false;
+        return true;
+    });
+
+    let html="";
+    list.forEach((item,i)=>{
+        html+=`<tr>
+            <td>${item.docNo}</td><td>${item.docType}</td><td>${item.title}</td>
+            <td>${item.pages}</td><td>${item.sendDate}</td><td>${item.auditUser}</td>
+            <td>${item.writeUser}</td><td>${item.typeUser}</td>
+            <td>
+                <button class='action-btn edit-btn' onclick='editDoc(${i})'>修改</button>
+            </td>
+        </tr>`;
+    });
+    document.getElementById("docList").innerHTML=html;
+}
+
+function editDoc(index){
+    let item=get("docs")[index];editIndex=index;
+    document.getElementById("docType").value=item.docType;
+    document.getElementById("year").value=item.year;
+    document.getElementById("docNo").value=item.docNo;
+    document.getElementById("title").value=item.title;
+    document.getElementById("pages").value=item.pages;
+    document.getElementById("sendDate").value=item.sendDate;
+    initSelect();
+    document.getElementById("auditUser").value=item.auditUser;
+    document.getElementById("writeUser").value=item.writeUser;
+    document.getElementById("typeUser").value=item.typeUser;
+    showPage("add");
+}
+
+function buildExcelData(dataList, titleText){
+    let data = [
+        [titleText],
+        ["文号","类型","标题","页数","日期","审核","撰稿","打字"]
+    ];
+    dataList.forEach(item=>{
+        data.push([
+            item.docNo,
+            item.docType,
+            item.title,
+            item.pages,
+            item.sendDate,
+            item.auditUser,
+            item.writeUser,
+            item.typeUser
+        ]);
+    });
+
+    let ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!merges'] = [{ s: {r:0,c:0}, e: {r:0,c:7} }];
+
+    ws['A1'].s = {
+        alignment: { horizontal: "center", vertical: "center" },
+        font: { bold: true, sz: 16 }
+    };
+
+    for(let i=0; i<8; i++){
+        ws[XLSX.utils.encode_cell({r:1,c:i})].s = {
+            alignment: { horizontal: "center", vertical: "center" },
+            font: { bold: true }
+        };
+    }
+
+    for(let r=2; r<data.length; r++){
+        for(let c=0; c<8; c++){
+            if(ws[XLSX.utils.encode_cell({r,c})]){
+                ws[XLSX.utils.encode_cell({r,c})].s = {
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: {
+                        top: { style: "thin" },
+                        bottom: { style: "thin" },
+                        left: { style: "thin" },
+                        right: { style: "thin" }
+                    }
+                };
+            }
+        }
+    }
+
+    ws['!cols'] = [
+        {wch: 22},{wch: 10},{wch: 45},{wch: 8},
+        {wch: 12},{wch: 10},{wch: 10},{wch: 10}
+    ];
+    ws['!rows'] = [{hpx: 30},{hpx: 24}];
+    for(let i=2; i<data.length; i++){
+        ws['!rows'][i] = {hpx: 22};
+    }
+
+    return ws;
+}
+
+function saveAs(blob, fileName){
+    if(window.showSaveFilePicker){
+        (async ()=>{
+            try{
+                const handle=await window.showSaveFilePicker({
+                    suggestedName:fileName,
+                    types:[{
+                        description:"文件",
+                        accept:blob.type?{[blob.type]:[]}:undefined
+                    }]
+                });
+                const writable=await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                alert("保存成功："+handle.name);
+            }catch(e){
+                if(e.name!=="AbortError") alert("保存失败："+e.message);
+            }
+        })();
+    }else{
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;
+        a.download=fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert("已触发下载，请在浏览器下载记录中查看");
+    }
+}
+
+function exportAllExcel(){
+    try {
+        if (typeof XLSX === 'undefined') {
+            alert("Excel库未加载，请确认xlsx.full.min.js存在");
+            return;
+        }
+        let list = get("docs");
+        let ws = buildExcelData(list, "彭州市委组织部发文一览表（全部）");
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "全部发文");
+        const excelBuf=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+        const blob=new Blob([excelBuf],{type:"application/octet-stream"});
+        saveAs(blob,"发文一览表_全部.xlsx");
+    } catch(e){
+        alert("导出失败："+e.message);
+    }
+}
+
+function exportFilterExcel(){
+    try {
+        if (typeof XLSX === 'undefined') {
+            alert("Excel库未加载，请确认xlsx.full.min.js存在");
+            return;
+        }
+        let filterYear = document.getElementById("filterYear").value;
+        let fType=document.getElementById("filterType").value;
+        let fDocNo=document.getElementById("filterDocNo").value.trim().toLowerCase();
+        let sDate=document.getElementById("startDate").value;
+        let eDate=document.getElementById("endDate").value;
+
+        let allList = get("docs");
+        let filterList = allList.filter(item=>{
+            if(item.year !== filterYear) return false;
+            if(fType && item.docType!==fType) return false;
+            if(fDocNo && !item.docNo.toLowerCase().includes(fDocNo)) return false;
+            if(sDate && item.sendDate<sDate) return false;
+            if(eDate && item.sendDate>eDate) return false;
+            return true;
+        });
+
+        let title = `彭州市委组织部${filterYear}年发文一览表`;
+        let fileName=`发文一览表_${filterYear}年`;
+        if(fType) fileName+=`_${fType}`;
+        if(sDate||eDate) fileName+=`_日期筛选`;
+        fileName+=".xlsx";
+
+        let ws = buildExcelData(filterList, title);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "筛选发文");
+        const excelBuf=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+        const blob=new Blob([excelBuf],{type:"application/octet-stream"});
+        saveAs(blob,fileName);
+    } catch(e){
+        alert("筛选导出失败："+e.message);
+    }
+}
+
+function downloadTemplate(){
+    try {
+        if (typeof XLSX === 'undefined') {
+            alert("Excel库未加载，请确认xlsx.full.min.js存在");
+            return;
+        }
+        let head = [["文号","类型","标题","页数","日期","审核人","撰稿人","打字人"]];
+        let ws = XLSX.utils.aoa_to_sheet(head);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb,ws,"模板");
+        const excelBuf=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+        const blob=new Blob([excelBuf],{type:"application/octet-stream"});
+        saveAs(blob,"发文导入模板.xlsx");
+    } catch(e){
+        alert("下载模板失败："+e.message);
+    }
+}
+
+function importExcel(){
+    try {
+        if (typeof XLSX === 'undefined') {
+            alert("Excel库未加载，请确认xlsx.full.min.js存在");
+            return;
+        }
+        let i=document.createElement("input");i.type="file";i.accept=".xlsx,.xls";
+        i.onchange=e=>{
+            let f=e.target.files[0];
+            let r=new FileReader();
+            r.onload=ev=>{
+                let wb=XLSX.read(ev.target.result,{type:"binary"});
+                let json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                let docs=get("docs");
+                let c=0;
+                json.forEach(row=>{
+                    let docNo=row["文号"];
+                    let docType=row["类型"];
+                    let title=row["标题"];
+                    if(!docNo||!docType||!title)return;
+                    if(docs.some(x=>x.docNo===docNo))return;
+                    let y=docNo.match(/〔(\d{4})〕/)||[0,2026];
+                    docs.push({
+                        docNo,docType,year:y[1],title,
+                        pages:row["页数"]||"",
+                        sendDate:row["日期"]||"",
+                        auditUser:row["审核人"]||"",
+                        writeUser:row["撰稿人"]||"",
+                        typeUser:row["打字人"]||""
+                    });
+                    c++;
+                });
+                set("docs",docs);
+                alert(`导入成功：${c}条`);
+                loadList();
+            };
+            r.readAsBinaryString(f);
+        };
+        i.click();
+    } catch(e){
+        alert("导入Excel失败："+e.message);
+    }
+}
+
+function exportData(){
+    let all={
+        typeList:get("typeList"),
+        auditList:get("auditList"),
+        writeList:get("writeList"),
+        typeUserList:get("typeUserList"),
+        docs:get("docs")
+    };
+    let jsonStr=JSON.stringify(all,null,2);
+    let blob=new Blob([jsonStr],{type:"application/json"});
+    let now = new Date();
+    let timeStr = now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0')
+                + now.getHours().toString().padStart(2,'0') + now.getMinutes().toString().padStart(2,'0');
+    saveAs(blob,"系统备份_"+timeStr+".json");
+}
+
+function importData(){
+    let i=document.createElement("input");i.type="file";i.accept=".json";
+    i.onchange=e=>{
+        let f=e.target.files[0];
+        let r=new FileReader();
+        r.onload=ev=>{
+            let d=JSON.parse(ev.target.result);
+            set("typeList",d.typeList);
+            set("auditList",d.auditList);
+            set("writeList",d.writeList);
+            set("typeUserList",d.typeUserList);
+            set("docs",d.docs);
+            alert("恢复成功");
+            showPage("home");
+        };
+        r.readAsText(f);
+    };
+    i.click();
+}
+
+function addItem(k,id){
+    let v=document.getElementById(id).value.trim();
+    if(!v)return;
+    let a=get(k);
+    if(!a.includes(v))a.push(v);
+    set(k,a);
+    document.getElementById(id).value="";
+    showSetting();
+}
+function delItem(k,i){
+    let a=get(k);a.splice(i,1);set(k,a);showSetting();
+}
+function showSetting(){
+    render("typeList","typeShow");
+    render("auditList","auditShow");
+    render("writeList","writeShow");
+    render("typeUserList","typeUserShow");
+}
+function render(k,id){
+    let a=get(k),h="";
+    a.forEach((v,i)=>h+=v+" <button class='action-btn del-btn' onclick='delItem(\""+k+"\","+i+")'>删除</button> &nbsp;");
+    document.getElementById(id).innerHTML=h;
+}
+</script>
+</body>
+</html>
